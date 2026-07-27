@@ -52,42 +52,75 @@ foreach srcFile $subRuns {
     open_solution  -reset simulation
     create_clock   -period 10 -name default
 
-    catch { csim_design -clean }
-    set compRc [catch { csim_design } rc]
+    # On Vivado 2018.3 Windows, csim_design fails due to /dev/null in Makefile.rules.
+    # Workaround: run csim_design -setup (may fail but generates files), fix Makefile.rules,
+    # then run make manually.
+    catch { csim_design -setup }
+    set simOutput ""
+    set compRc 1
+    # Fix /dev/null → NUL in Makefile.rules
+    set rulesFile [file normalize "${designNm}/simulation/csim/build/Makefile.rules"]
+    if {[file exists $rulesFile]} {
+        set fh [open $rulesFile r]
+        set content [read $fh]
+        close $fh
+        regsub -all {/dev/null} $content "NUL" content
+        set fh [open $rulesFile w]
+        puts -nonewline $fh $content
+        close $fh
+        # Run make with Vivado's msys64 in PATH
+        set vivadoRoot "D:/Xilinx/Vivado/2018.3"
+        set msysBin "${vivadoRoot}/msys64/mingw64/bin"
+        set mingwBin "${vivadoRoot}/msys64/usr/bin"
+        set ::env(PATH) "${msysBin};${mingwBin};${vivadoRoot}/bin;$::env(PATH)"
+        set buildDir [file normalize "${designNm}/simulation/csim/build"]
+        set makePath "${msysBin}/make.exe"
+        if {[file exists $makePath]} {
+            set compRc [catch { exec "${makePath}" -C "${buildDir}" -f csim.mk 2>&1 } simOutput]
+            if {$compRc == 0} {
+                # Run the compiled executable with proper PATH via a wrapper batch file
+                set exeFile "${buildDir}/csim.exe"
+                if {[file exists $exeFile]} {
+                    # Create a wrapper batch file that sets PATH and runs csim.exe
+                    set wrapperBat "${buildDir}/run_csim.bat"
+                    set fh [open $wrapperBat w]
+                    puts $fh "@echo off"
+                    puts $fh "set PATH=${msysBin};${mingwBin};${vivadoRoot}/bin;%PATH%"
+                    puts $fh "\"${exeFile}\""
+                    close $fh
+                    # Use open with pipe to capture output
+                    set pipeFd [open "|cmd /c \"${wrapperBat}\"" r]
+                    set simOutput [read $pipeFd]
+                    set simRc [catch { close $pipeFd }]
+                    set compRc $simRc
+                }
+            }
+        }
+    }
 
     if {$compRc != 0} {
         write_sim_result $designNm FAIL FAIL "csim_design failed: compilation error(s)"
     } else {
-        set logFile [file normalize "${designNm}/simulation/csim/report/TopModule_csim.log"]
-        if {![file exists $logFile]} {
-            set logFile [file normalize "${designNm}/simulation/csim/report/Topmodule_csim.log"]
+        # Check simOutput for pass/fail marker
+        if {$simOutput eq ""} {
+            # Try reading the log file as fallback
+            set logFile [file normalize "${designNm}/simulation/csim/report/TopModule_csim.log"]
+            if {![file exists $logFile]} {
+                set logFile [file normalize "${designNm}/simulation/csim/report/Topmodule_csim.log"]
+            }
+            if {[file exists $logFile]} {
+                set fh2 [open $logFile r]
+                set simOutput [read $fh2]
+                close $fh2
+            }
         }
-        if {![file exists $logFile]} {
-            write_sim_result $designNm PASS FAIL "Missing TopModule_csim.log"
+
+        if {[string match "*Test Passed*" $simOutput]} {
+            write_sim_result $designNm PASS PASS "Test Passed"
+        } elseif {[string match "*Test Failed*" $simOutput]} {
+            write_sim_result $designNm PASS FAIL "Test Failed"
         } else {
-            set fh2 [open $logFile r]
-            set lines {}
-            while {[gets $fh2 line] >= 0} { lappend lines $line }
-            close $fh2
-
-            set statusLine ""
-            for {set i [expr {[llength $lines]-1}]} {$i >= 0} {incr i -1} {
-                set cur [lindex $lines $i]
-                if {[string match "*Test Passed*" $cur] || [string match "*Test Failed*" $cur]} {
-                    set statusLine $cur
-                    break
-                }
-            }
-
-            if {$statusLine eq ""} {
-                write_sim_result $designNm PASS FAIL "No pass/fail marker in csim log"
-            } elseif {[string match "*Test Passed*" $statusLine]} {
-                write_sim_result $designNm PASS PASS $statusLine
-            } elseif {[string match "*Test Failed*" $statusLine]} {
-                write_sim_result $designNm PASS FAIL $statusLine
-            } else {
-                write_sim_result $designNm PASS FAIL "Unrecognized status: $statusLine"
-            }
+            write_sim_result $designNm PASS FAIL "No pass/fail marker in csim output"
         }
     }
 

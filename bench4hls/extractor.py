@@ -8,7 +8,7 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 _CODE_START_RE = re.compile(
-    r"^\s*(#include|#pragma|#ifndef|#define|void\s+TopModule|using\s+namespace)",
+    r"^\s*(#?\s*include|#?\s*pragma|#?\s*ifndef|#?\s*define|void\s+TopModule|using\s+namespace)",
     re.MULTILINE,
 )
 
@@ -64,7 +64,28 @@ def _clean(code: str) -> str:
     last_brace = code.rfind("}")
     if last_brace != -1:
         code = code[: last_brace + 1]
-    return code.strip()
+    code = code.strip()
+    # Fix missing # before include/pragma/define/ifndef on each line
+    lines = code.split("\n")
+    fixed_lines = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("include ") or stripped.startswith("include<"):
+            if not line.lstrip().startswith("#"):
+                line = line.replace(stripped, "#" + stripped, 1)
+        elif stripped.startswith("pragma "):
+            if not line.lstrip().startswith("#"):
+                line = line.replace(stripped, "#" + stripped, 1)
+        elif stripped.startswith("define "):
+            if not line.lstrip().startswith("#"):
+                line = line.replace(stripped, "#" + stripped, 1)
+        elif stripped.startswith("ifndef "):
+            if not line.lstrip().startswith("#"):
+                line = line.replace(stripped, "#" + stripped, 1)
+        # Fix double semicolons
+        line = line.replace(";;", ";")
+        fixed_lines.append(line)
+    return "\n".join(fixed_lines)
 
 
 # File-level helpers used by the main runner

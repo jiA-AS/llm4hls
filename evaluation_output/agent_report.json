@@ -1,0 +1,44 @@
+{
+  "total_tasks": 3,
+  "accepted": 0,
+  "skipped": 0,
+  "exhausted": 3,
+  "errors": 0,
+  "total_attempts": 0,
+  "csim_used": 0,
+  "synth_used": 0,
+  "tokens_used": 0,
+  "elapsed_seconds": 7.224082946777344e-05,
+  "per_task": [
+    {
+      "task_id": "Prob001",
+      "attempts": 0,
+      "final_action": "exhausted",
+      "best_status": {
+        "compilation": "N/A",
+        "simulation": "N/A",
+        "synthesis": "N/A"
+      }
+    },
+    {
+      "task_id": "Prob002",
+      "attempts": 0,
+      "final_action": "exhausted",
+      "best_status": {
+        "compilation": "N/A",
+        "simulation": "N/A",
+        "synthesis": "N/A"
+      }
+    },
+    {
+      "task_id": "Prob003",
+      "attempts": 0,
+      "final_action": "exhausted",
+      "best_status": {
+        "compilation": "N/A",
+        "simulation": "N/A",
+        "synthesis": "N/A"
+      }
+    }
+  ]
+}

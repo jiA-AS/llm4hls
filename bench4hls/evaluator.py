@@ -1,15 +1,18 @@
-"""Run Vitis HLS + Vivado evaluation pipeline."""
+"""Run Vitis HLS + Vivado evaluation pipeline (Windows + Linux compatible)."""
 
 import logging
 import os
 import signal
 import shutil
 import subprocess
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
+
+_IS_WINDOWS = sys.platform.startswith("win")
 
 _XILINX_ROOTS = [
     Path("/tools/Xilinx"),
@@ -23,6 +26,11 @@ def _find_tool(tool: str, version: str, hint: Optional[str] = None) -> Path:
         p = Path(hint)
         if p.exists():
             return p
+        # On Windows, try adding .bat extension if not present
+        if _IS_WINDOWS and not hint.endswith(".bat"):
+            p_bat = Path(hint + ".bat")
+            if p_bat.exists():
+                return p_bat
         raise FileNotFoundError(f"Explicit tool path not found: {hint}")
 
     which = shutil.which(tool)
@@ -84,13 +92,27 @@ class Evaluator:
             _p.chmod(_p.stat().st_mode | 0o111)
 
     def _build_xilinx_env(self, vitis_bin: Path) -> dict:
-        """Build env by sourcing Xilinx setup script."""
+        """Build env by sourcing Xilinx setup script (Windows + Linux compatible)."""
         vitis_install = vitis_bin.parent
         if "unwrapped" in str(vitis_bin):
             vitis_install = vitis_bin.parent.parent.parent.parent
         elif vitis_install.name == "bin":
             vitis_install = vitis_install.parent
-        
+
+        if _IS_WINDOWS:
+            # On Windows, vivado_hls.bat handles its own environment via settings64.bat
+            # Just return current environment with PATH extended to include vitis bin dir
+            env = os.environ.copy()
+            bin_dir = str(vitis_bin.parent)
+            if "PATH" in env:
+                if bin_dir not in env["PATH"]:
+                    env["PATH"] = bin_dir + ";" + env["PATH"]
+            else:
+                env["PATH"] = bin_dir
+            logger.debug("Windows mode: using current environment with PATH += %s", bin_dir)
+            return env
+
+        # Linux: source setupEnv.sh
         setup_env = vitis_install / "bin" / "setupEnv.sh"
         
         if not setup_env.exists():
@@ -220,13 +242,23 @@ class Evaluator:
                 proc.wait()
                 return -1, True
 
+    def _vitis_cmd(self) -> list:
+        """Build the vitis_hls command line (version-aware)."""
+        base = [str(self.vitis)]
+        # Vivado HLS 2018.3 doesn't support -nolog; newer versions do
+        if "2018" not in str(self.vitis) and "2019" not in str(self.vitis):
+            base.append("-nolog")
+        base.append("-nosplash")
+        return base
+
     def _sim_one(self, K: int, run: int, design_n: int, design_label: str) -> int:
         logger.info("  simulation design %s", design_label)
         tcl = self.scripts_dir / "simulation.tcl"
         log = self.logs_dir / f"sim_run{run}_design{design_n}.log"
         env = self._vitis_env(K, run, design_n, design_n)
+        cmd = self._vitis_cmd() + ["-f", str(tcl)]
         rc, timed_out = self._run_proc(
-            [str(self.vitis), "-nolog", "-nosplash", "-f", str(tcl)],
+            cmd,
             str(self.workdir),
             env,
             log,
@@ -247,8 +279,9 @@ class Evaluator:
         tcl = self.scripts_dir / "synthesis.tcl"
         log = self.logs_dir / f"synth_run{run}_design{design_n}.log"
         env = self._vitis_env(K, run, design_n, design_n)
+        cmd = self._vitis_cmd() + ["-f", str(tcl)]
         rc, timed_out = self._run_proc(
-            [str(self.vitis), "-nolog", "-nosplash", "-f", str(tcl)],
+            cmd,
             str(self.workdir),
             env,
             log,

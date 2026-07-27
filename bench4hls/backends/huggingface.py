@@ -58,10 +58,15 @@ class HuggingFaceBackend(ModelBackend):
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig  # type: ignore
 
-        logger.info("Loading %s via transformers (4bit=%s)", self.model_name, use_4bit)
+        use_cuda = torch.cuda.is_available()
+        if not use_cuda:
+            logger.warning("CUDA not available — loading model in fp32 on CPU (4-bit disabled)")
+            use_4bit = False
+
+        logger.info("Loading %s via transformers (4bit=%s, cuda=%s)", self.model_name, use_4bit, use_cuda)
 
         quant_cfg = None
-        if use_4bit:
+        if use_4bit and use_cuda:
             try:
                 quant_cfg = BitsAndBytesConfig(
                     load_in_4bit=True,
@@ -72,6 +77,8 @@ class HuggingFaceBackend(ModelBackend):
             except Exception as exc:
                 logger.warning("bitsandbytes 4-bit config failed (%s) — loading in fp16", exc)
 
+        dtype = torch.float16 if use_cuda else torch.float32
+
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.model_name,
             trust_remote_code=True,
@@ -80,8 +87,8 @@ class HuggingFaceBackend(ModelBackend):
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
             quantization_config=quant_cfg,
-            torch_dtype=torch.float16 if not use_4bit else None,
-            device_map="auto",
+            torch_dtype=dtype,
+            device_map="cpu" if not use_cuda else "auto",
             trust_remote_code=True,
             token=self.hf_token,
         )
@@ -92,19 +99,32 @@ class HuggingFaceBackend(ModelBackend):
     def generate(self, instruction: str) -> str:
         import torch
 
-        prompt = ALPACA_PROMPT.format(instruction=instruction)
+        # Use a simpler prompt format that works better with deepseek-coder
+        prompt = f"### Instruction:\n{instruction}\n\n### Response:\n"
         inputs = self.tokenizer([prompt], return_tensors="pt").to(self.model.device)
+
+        # Ensure pad_token_id is set
+        if self.tokenizer.pad_token_id is None:
+            self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
+
+        # Limit max_new_tokens to avoid OOM on 8GB GPU
+        max_tokens = min(self.max_new_tokens, 1024)
 
         with torch.no_grad():
             output_ids = self.model.generate(
                 **inputs,
-                max_new_tokens=self.max_new_tokens,
+                max_new_tokens=max_tokens,
                 temperature=self.temperature,
                 do_sample=self.temperature > 0,
+                pad_token_id=self.tokenizer.pad_token_id,
+                eos_token_id=self.tokenizer.eos_token_id,
             )
 
         generated_text = self.tokenizer.decode(output_ids[0], skip_special_tokens=True)
-        return generated_text
+        # Remove the input prompt from the generated text
+        if prompt in generated_text:
+            generated_text = generated_text.split(prompt, 1)[1]
+        return generated_text.strip()
 
     def close(self) -> None:
         import torch, gc

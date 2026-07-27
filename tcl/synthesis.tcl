@@ -62,7 +62,9 @@ foreach srcFile $subRuns {
     # Clean & open project/solution
     open_project   "${designNm}"
     open_solution  -reset synthesis
-    set_part       {xc7a200tffv1156-1}
+    if {[catch { set_part {xc7a200tffv1156-1} }]} {
+        puts "Warning: set_part not supported in this version, continuing without part specification"
+    }
     create_clock   -period 10 -name default
     add_files      $srcFile
     set_top        TopModule
