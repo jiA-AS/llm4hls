@@ -30,7 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Bench4HLS Agent — Iterative HLS code generation with budget-controlled repair.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    p.add_argument("--backend", choices=["huggingface", "ollama"], required=True,
+    p.add_argument("--backend", choices=["huggingface", "ollama", "deepseek_api"], required=True,
                    help="LLM inference backend")
     p.add_argument("--config", default="bench4hls_config.json",
                    help="Path to bench4hls_config.json (default: bench4hls_config.json)")
@@ -88,7 +88,7 @@ def main() -> None:
             hf_token=cfg.hf_token,
             hf_endpoint=cfg.hf_endpoint,
         )
-    else:
+    elif ns.backend == "ollama":
         from bench4hls.backends import OllamaBackend
         backend = OllamaBackend(
             model_name=cfg.model,
@@ -97,6 +97,17 @@ def main() -> None:
             temperature=cfg.temperature,
             timeout=cfg.ollama_timeout,
         )
+    else:  # deepseek_api
+        from bench4hls.backends import DeepSeekAPIBackend
+        backend = DeepSeekAPIBackend(
+            api_key=cfg.deepseek_api_key,
+            model=cfg.model if hasattr(cfg, 'model') else "deepseek-coder",
+        )
+        # Override max_new_tokens and temperature from backend defaults if needed
+        if hasattr(cfg, 'max_new_tokens'):
+            backend.max_new_tokens = cfg.max_new_tokens
+        if hasattr(cfg, 'temperature'):
+            backend.temperature = cfg.temperature
 
     # Workdir
     workdir = Path(ns.output_dir) if ns.output_dir else cfg.output_dir

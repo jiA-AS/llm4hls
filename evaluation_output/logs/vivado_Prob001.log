@@ -1,0 +1,30 @@
+
+****** Vivado v2018.3 (64-bit)
+  **** SW Build 2405991 on Thu Dec  6 23:38:27 MST 2018
+  **** IP Build 2404404 on Fri Dec  7 01:43:56 MST 2018
+    ** Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
+
+source {E:\FPGA\project\FPT\Bench4HLS\tcl\vivado_power.tcl}
+# if {[llength $argv] != 1} {
+#     puts stderr "ERROR: missing design name"
+#     exit 1
+# }
+# set design [lindex $argv 0]
+# puts ">> Vivado power for $design"
+>> Vivado power for Prob001
+# set root   [file normalize [pwd]]
+# set ddir   [file join $root $design]
+# set vdir   [file join $ddir synthesis syn verilog]
+# set odir   [file join $ddir vivado_power]
+# file mkdir $odir
+# set powerDir [file join $root power_out]
+# file mkdir $powerDir
+# if {![file exists $vdir] || [llength [glob -directory $vdir *.v]] == 0} {
+#     puts " SKIP: no RTL under $vdir"
+#     set fh [open [file join $powerDir "${design}.txt"] w]
+#     puts $fh "N/A"
+#     close $fh
+#     exit 0
+# }
+ SKIP: no RTL under E:/FPGA/project/FPT/Bench4HLS/evaluation_output/Prob001/synthesis/syn/verilog
+INFO: [Common 17-206] Exiting Vivado at Tue Jul 28 01:14:36 2026...

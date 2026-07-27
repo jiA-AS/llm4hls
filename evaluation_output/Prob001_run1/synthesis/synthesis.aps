@@ -1,0 +1,23 @@
+<AutoPilot:solution xmlns:AutoPilot="com.autoesl.autopilot.solution">
+    <name>
+        <value string="synthesis"/>
+    </name>
+    <project>
+        <value string="Prob001_run1"/>
+    </project>
+    <targetInfo>
+        <TargetInfo value="xc7a200t:ffv1156:-1"/>
+    </targetInfo>
+    <libraryList>
+        <library value="xilinx/artix7/artix7" name="DefaultPlatform"/>
+        <library value="xilinx/artix7/artix7_fpv6" name="DefaultPlatform"/>
+    </libraryList>
+    <clockList>
+        <clock name="default" period="10" default="false"/>
+    </clockList>
+    <config>
+        <config_compile blackbox=""/>
+        <schedule model="TopModule"/>
+    </config>
+</AutoPilot:solution>
+

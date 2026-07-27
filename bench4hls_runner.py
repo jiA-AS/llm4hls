@@ -52,7 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--backend",
-        choices=["huggingface", "ollama"],
+        choices=["huggingface", "ollama", "deepseek_api"],
         default=None,
         help="Inference backend (required unless --skip-gen)",
     )
@@ -90,7 +90,7 @@ def stage_generate(
     run_idx: int,
 ) -> list:
     global _backend_instance
-    from bench4hls.backends import HuggingFaceBackend, OllamaBackend
+    from bench4hls.backends import HuggingFaceBackend, OllamaBackend, DeepSeekAPIBackend
 
     logger.info("=== STAGE 1: Generate (run %d/%d) ===", run_idx, cli.pass_at_k)
 
@@ -109,13 +109,20 @@ def stage_generate(
                 hf_token=cfg.hf_token,
                 hf_endpoint=cfg.hf_endpoint,
             )
-        else:
+        elif cli.backend == "ollama":
             _backend_instance = OllamaBackend(
                 model_name=cfg.model,
                 host=cfg.ollama_host,
                 max_new_tokens=cfg.max_new_tokens,
                 temperature=cfg.temperature,
                 timeout=cfg.ollama_timeout,
+            )
+        elif cli.backend == "deepseek_api":
+            _backend_instance = DeepSeekAPIBackend(
+                api_key=cfg.deepseek_api_key,
+                model=cfg.deepseek_api_model,
+                max_new_tokens=cfg.max_new_tokens,
+                temperature=cfg.temperature,
             )
 
     backend = _backend_instance

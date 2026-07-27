@@ -1,0 +1,8 @@
+INFO: [SIM 2] *************** CSIM start ***************
+INFO: [SIM 4] CSIM will launch GCC as the compiler.
+INFO: [SIM 7] User does not set_part, FPO V7 c-model will be used by default.
+   Compiling ../../../../Prob001_tb.cpp in debug mode
+   Compiling ../../../../Prob001_design_run1.cpp in debug mode
+   Generating csim.exe
+INFO: [SIM 1] CSim file generation done with 0 errors.
+INFO: [SIM 3] *************** CSIM finish ***************

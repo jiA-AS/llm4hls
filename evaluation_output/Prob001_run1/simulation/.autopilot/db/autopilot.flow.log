@@ -1,0 +1,18 @@
+INFO-FLOW: Workspace E:/FPGA/project/FPT/Bench4HLS/evaluation_output/Prob001_run1/simulation opened at Tue Jul 28 01:14:24 +0800 2026
+Execute     create_clock -period 10 -name default 
+Execute       config_clock -quiet -name default -period 10 -default=false 
+INFO: [SYN 201-201] Setting up clock 'default' with a period of 10ns.
+Execute     csim_design -setup 
+INFO: [SIM 211-2] *************** CSIM start ***************
+INFO: [SIM 211-4] CSIM will launch GCC as the compiler.
+INFO: [SIM 211-7] User does not set_part, FPO V7 c-model will be used by default.
+Execute       is_encrypted E:/FPGA/project/FPT/Bench4HLS/evaluation_output/Prob001_tb.cpp 
+Execute       is_xip E:/FPGA/project/FPT/Bench4HLS/evaluation_output/Prob001_tb.cpp 
+Execute       is_encrypted E:/FPGA/project/FPT/Bench4HLS/evaluation_output/Prob001_design_run1.cpp 
+Execute       is_xip E:/FPGA/project/FPT/Bench4HLS/evaluation_output/Prob001_design_run1.cpp 
+Execute       get_default_platform 
+INFO: [SIM 211-1] CSim file generation done with 0 errors.
+INFO: [SIM 211-3] *************** CSIM finish ***************
+Command     csim_design done; 2.183 sec.
+Execute     close_project 
+Execute     cleanup_all 

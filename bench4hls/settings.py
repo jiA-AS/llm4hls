@@ -14,6 +14,7 @@ DESIGN_TIMEOUT_SECONDS = 300
 @dataclass
 class BenchConfig:
     model: str
+    backend: str
     input_prompts: Path
     output_dir: Optional[Path]
     output_json: Optional[Path]
@@ -25,6 +26,8 @@ class BenchConfig:
     hf_endpoint: Optional[str]
     ollama_host: str
     ollama_timeout: int
+    deepseek_api_key: Optional[str]
+    deepseek_model: str
     xilinx_version: str
     vitis_bin: Optional[str]
     vivado_bin: Optional[str]
@@ -56,8 +59,10 @@ def load_config(script_dir: Path, raw: Optional[dict[str, Any]] = None) -> Bench
     gen = raw.get("generation") or {}
     hf = raw.get("huggingface") or {}
     ol = raw.get("ollama") or {}
+    ds = raw.get("deepseek_api") or {}
     xi = raw.get("xilinx") or {}
 
+    backend = raw.get("backend", "huggingface")
     model = raw.get("model")
     if not model:
         raise ValueError("bench4hls_config.json: 'model' is required")
@@ -66,6 +71,7 @@ def load_config(script_dir: Path, raw: Optional[dict[str, Any]] = None) -> Bench
 
     return BenchConfig(
         model=model,
+        backend=backend,
         input_prompts=_resolve(script_dir, inp) or (script_dir / inp).resolve(),
         output_dir=_resolve(script_dir, raw.get("output_dir")),
         output_json=_resolve(script_dir, raw.get("output_json")),
@@ -77,6 +83,8 @@ def load_config(script_dir: Path, raw: Optional[dict[str, Any]] = None) -> Bench
         hf_endpoint=hf.get("endpoint") or None,
         ollama_host=str(ol.get("host", "http://localhost:11434")),
         ollama_timeout=int(ol.get("timeout_seconds", 600)),
+        deepseek_api_key=ds.get("api_key") or None,
+        deepseek_model=str(ds.get("model", "deepseek-coder")),
         xilinx_version=str(xi.get("version", "2025.2.1")),
         vitis_bin=xi.get("vitis_bin") or None,
         vivado_bin=xi.get("vivado_bin") or None,

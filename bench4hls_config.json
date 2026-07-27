@@ -1,5 +1,6 @@
 {
-  "model": "deepseek-ai/deepseek-coder-1.3b-instruct",
+  "backend": "deepseek_api",
+  "model": "deepseek-coder",
   "input_prompts": "benchmark/input_prompts.json",
   "output_dir": "E:/FPGA/project/FPT/Bench4HLS/evaluation_output",
   "output_json": "output.json",
@@ -16,6 +17,10 @@
   "ollama": {
     "host": "http://localhost:11434",
     "timeout_seconds": 600
+  },
+  "deepseek_api": {
+    "api_key": "sk-ae3a40051e534edfb2c892e7bfa87284",
+    "model": "deepseek-coder"
   },
   "parallel_workers": 1,
   "xilinx": {

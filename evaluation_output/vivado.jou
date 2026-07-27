@@ -1,0 +1,12 @@
+#-----------------------------------------------------------
+# Vivado v2018.3 (64-bit)
+# SW Build 2405991 on Thu Dec  6 23:38:27 MST 2018
+# IP Build 2404404 on Fri Dec  7 01:43:56 MST 2018
+# Start of session at: Tue Jul 28 01:14:34 2026
+# Process ID: 39592
+# Current directory: E:/FPGA/project/FPT/Bench4HLS/evaluation_output
+# Command line: vivado.exe -mode batch -source E:\FPGA\project\FPT\Bench4HLS\tcl\vivado_power.tcl -tclargs Prob001
+# Log file: E:/FPGA/project/FPT/Bench4HLS/evaluation_output/vivado.log
+# Journal file: E:/FPGA/project/FPT/Bench4HLS/evaluation_output\vivado.jou
+#-----------------------------------------------------------
+source {E:\FPGA\project\FPT\Bench4HLS\tcl\vivado_power.tcl}

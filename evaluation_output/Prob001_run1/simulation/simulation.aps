@@ -1,0 +1,12 @@
+<AutoPilot:solution xmlns:AutoPilot="com.autoesl.autopilot.solution">
+    <name>
+        <value string="simulation"/>
+    </name>
+    <project>
+        <value string="Prob001_run1"/>
+    </project>
+    <clockList>
+        <clock name="default" period="10" default="false"/>
+    </clockList>
+</AutoPilot:solution>
+
