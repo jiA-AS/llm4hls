@@ -85,9 +85,9 @@ class HuggingFaceBackend(ModelBackend):
                     bnb_4bit_use_double_quant=True,
                     bnb_4bit_quant_type="nf4",
                 )
-                # Limit GPU to 6GB, offload excess layers to CPU
-                max_memory = {0: "6GiB", "cpu": "32GiB"}
-                logger.info("GPU memory limit: 6GiB, CPU offload enabled")
+                # Limit GPU to 5.5GB, offload excess layers to CPU
+                max_memory = {0: "5.5GiB", "cpu": "32GiB"}
+                logger.info("GPU memory limit: 5.5GiB, CPU offload enabled")
             except Exception as exc:
                 logger.warning("bitsandbytes 4-bit config failed (%s) — loading in fp16", exc)
 
@@ -121,26 +121,30 @@ class HuggingFaceBackend(ModelBackend):
             torch.cuda.empty_cache()
             gc.collect()
 
-        # Use a simpler prompt format that works better with deepseek-coder
-        prompt = f"### Instruction:\n{instruction}\n\n### Response:\n"
+        # Use DeepSeek-Coder official format
+        prompt = f"<|User|>: {instruction}\n<|Assistant|>:"
         
         try:
-            # Truncate instruction if too long
-            max_input_tokens = 1024  # Reduced from 2048 to avoid OOM
+            # Tokenize with increased max_length to avoid truncating function prototypes
             inputs = self.tokenizer(
                 prompt,
                 return_tensors="pt",
                 truncation=True,
-                max_length=max_input_tokens
+                max_length=2048
             )
-            inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
+            
+            # CRITICAL FIX: When using device_map="auto" with CPU offload,
+            # do NOT use self.model.device (it may return 'meta' or inconsistent device)
+            # Instead, let accelerate handle device placement automatically
+            if torch.cuda.is_available():
+                inputs = {k: v.to("cuda") for k, v in inputs.items()}
 
             # Ensure pad_token_id is set
             if self.tokenizer.pad_token_id is None:
                 self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
 
-            # Limit max_new_tokens to avoid OOM on 8GB GPU
-            max_tokens = min(self.max_new_tokens, 1024)
+            # Reduce output length to minimize KV cache memory usage
+            max_tokens = min(self.max_new_tokens, 512)
 
             with torch.no_grad():
                 output_ids = self.model.generate(
@@ -154,13 +158,20 @@ class HuggingFaceBackend(ModelBackend):
                 )
 
             generated_text = self.tokenizer.decode(output_ids[0], skip_special_tokens=True)
+            
             # Remove the input prompt from the generated text
             if prompt in generated_text:
                 generated_text = generated_text.split(prompt, 1)[1]
+            elif "<|Assistant|>:" in generated_text:
+                generated_text = generated_text.split("<|Assistant|>:", 1)[1]
+                
             return generated_text.strip()
 
         except torch.cuda.OutOfMemoryError as e:
             logger.error("GPU OOM during generation: %s", e)
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                gc.collect()
             return ""
         except Exception as e:
             logger.error("Generation error: %s", e)
