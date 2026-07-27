@@ -1,5 +1,5 @@
 {
-  "model": "deepseek-ai/deepseek-coder-6.7b-instruct",
+  "model": "deepseek-ai/deepseek-coder-1.3b-instruct",
   "input_prompts": "benchmark/input_prompts.json",
   "output_dir": "E:/FPGA/project/FPT/Bench4HLS/evaluation_output",
   "output_json": "output.json",

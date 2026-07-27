@@ -125,7 +125,12 @@ Please provide the COMPLETE corrected code below:
         return (
             "Write synthesizable HLS C++ code for the following task.\n\n"
             f"### Task:\n{task_spec}\n\n"
-            "Output ONLY the C++ code (no explanation)."
+            "### Requirements:\n"
+            "- Include necessary headers (e.g., ap_int.h, ap_fixed.h, hls_stream.h)\n"
+            "- Use #pragma HLS INTERFACE for all ports\n"
+            "- The top-level function MUST be named TopModule\n"
+            "- Output ONLY the C++ code inside ```cpp ... ``` fences\n"
+            "- Do NOT add any explanation outside the code fences\n"
         )
 
     @staticmethod

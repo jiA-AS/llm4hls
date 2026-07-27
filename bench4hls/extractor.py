@@ -54,7 +54,22 @@ def _scan_for_code(text: str) -> Optional[str]:
     last_brace = snippet.rfind("}")
     if last_brace == -1:
         return snippet
-    return snippet[: last_brace + 1]
+    code = snippet[: last_brace + 1]
+    # Try to include preceding lines that look like #include/#define/#pragma
+    lines = text[:code_start].split("\n")
+    extra_lines = []
+    for line in reversed(lines):
+        stripped = line.strip()
+        if stripped.startswith("include") or stripped.startswith("#include") or \
+           stripped.startswith("define") or stripped.startswith("#define") or \
+           stripped.startswith("pragma") or stripped.startswith("#pragma") or \
+           stripped.startswith("ifndef") or stripped.startswith("#ifndef"):
+            extra_lines.insert(0, line)
+        else:
+            break
+    if extra_lines:
+        code = "\n".join(extra_lines) + "\n" + code
+    return code
 
 
 def _clean(code: str) -> str:

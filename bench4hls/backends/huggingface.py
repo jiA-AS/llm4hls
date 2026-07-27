@@ -65,7 +65,18 @@ class HuggingFaceBackend(ModelBackend):
 
         logger.info("Loading %s via transformers (4bit=%s, cuda=%s)", self.model_name, use_4bit, use_cuda)
 
+        # Set padding token
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            self.model_name,
+            trust_remote_code=True,
+            token=self.hf_token,
+            padding_side="left",
+        )
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+
         quant_cfg = None
+        max_memory = None
         if use_4bit and use_cuda:
             try:
                 quant_cfg = BitsAndBytesConfig(
@@ -74,57 +85,95 @@ class HuggingFaceBackend(ModelBackend):
                     bnb_4bit_use_double_quant=True,
                     bnb_4bit_quant_type="nf4",
                 )
+                # Limit GPU to 6GB, offload excess layers to CPU
+                max_memory = {0: "6GiB", "cpu": "32GiB"}
+                logger.info("GPU memory limit: 6GiB, CPU offload enabled")
             except Exception as exc:
                 logger.warning("bitsandbytes 4-bit config failed (%s) — loading in fp16", exc)
 
         dtype = torch.float16 if use_cuda else torch.float32
 
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            self.model_name,
-            trust_remote_code=True,
-            token=self.hf_token,
-        )
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
             quantization_config=quant_cfg,
             torch_dtype=dtype,
-            device_map="cpu" if not use_cuda else "auto",
+            device_map="auto" if use_cuda else "cpu",
+            max_memory=max_memory,
             trust_remote_code=True,
             token=self.hf_token,
         )
         self.model.eval()
         self._backend = "transformers"
-        logger.info("transformers model loaded")
+
+        # Log device allocation
+        if hasattr(self.model, 'hf_device_map'):
+            gpu_layers = sum(1 for d in self.model.hf_device_map.values() if d == 0)
+            cpu_layers = sum(1 for d in self.model.hf_device_map.values() if d == 'cpu')
+            logger.info("Model layers: GPU=%d, CPU=%d", gpu_layers, cpu_layers)
+        logger.info("transformers model loaded (GPU mem: %.2f GB)", torch.cuda.memory_allocated() / 1e9 if use_cuda else 0)
 
     def generate(self, instruction: str) -> str:
         import torch
+        import gc
+
+        # Clean GPU memory before generation
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            gc.collect()
 
         # Use a simpler prompt format that works better with deepseek-coder
         prompt = f"### Instruction:\n{instruction}\n\n### Response:\n"
-        inputs = self.tokenizer([prompt], return_tensors="pt").to(self.model.device)
-
-        # Ensure pad_token_id is set
-        if self.tokenizer.pad_token_id is None:
-            self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
-
-        # Limit max_new_tokens to avoid OOM on 8GB GPU
-        max_tokens = min(self.max_new_tokens, 1024)
-
-        with torch.no_grad():
-            output_ids = self.model.generate(
-                **inputs,
-                max_new_tokens=max_tokens,
-                temperature=self.temperature,
-                do_sample=self.temperature > 0,
-                pad_token_id=self.tokenizer.pad_token_id,
-                eos_token_id=self.tokenizer.eos_token_id,
+        
+        try:
+            # Truncate instruction if too long
+            max_input_tokens = 1024  # Reduced from 2048 to avoid OOM
+            inputs = self.tokenizer(
+                prompt,
+                return_tensors="pt",
+                truncation=True,
+                max_length=max_input_tokens
             )
+            inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
 
-        generated_text = self.tokenizer.decode(output_ids[0], skip_special_tokens=True)
-        # Remove the input prompt from the generated text
-        if prompt in generated_text:
-            generated_text = generated_text.split(prompt, 1)[1]
-        return generated_text.strip()
+            # Ensure pad_token_id is set
+            if self.tokenizer.pad_token_id is None:
+                self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
+
+            # Limit max_new_tokens to avoid OOM on 8GB GPU
+            max_tokens = min(self.max_new_tokens, 1024)
+
+            with torch.no_grad():
+                output_ids = self.model.generate(
+                    **inputs,
+                    max_new_tokens=max_tokens,
+                    temperature=self.temperature,
+                    do_sample=self.temperature > 0,
+                    pad_token_id=self.tokenizer.pad_token_id,
+                    eos_token_id=self.tokenizer.eos_token_id,
+                    use_cache=True,
+                )
+
+            generated_text = self.tokenizer.decode(output_ids[0], skip_special_tokens=True)
+            # Remove the input prompt from the generated text
+            if prompt in generated_text:
+                generated_text = generated_text.split(prompt, 1)[1]
+            return generated_text.strip()
+
+        except torch.cuda.OutOfMemoryError as e:
+            logger.error("GPU OOM during generation: %s", e)
+            return ""
+        except Exception as e:
+            logger.error("Generation error: %s", e)
+            return ""
+        finally:
+            # Clean up GPU memory
+            if 'inputs' in locals():
+                del inputs
+            if 'output_ids' in locals():
+                del output_ids
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                gc.collect()
 
     def close(self) -> None:
         import torch, gc

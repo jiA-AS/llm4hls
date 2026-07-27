@@ -151,24 +151,40 @@ foreach srcFile $subRuns {
 
         # 5.4) Extract Utilization from JSON
         set jf [file normalize "$designNm/synthesis/synthesis_data.json"]
-        set FF_UTIL   0
-        set LUT_UTIL  0
-        set DSP_UTIL  0
-        set BRAM_UTIL 0
+        set FF_UTIL   ""
+        set LUT_UTIL  ""
+        set DSP_UTIL  ""
+        set BRAM_UTIL ""
         if {[file exists $jf]} {
             set data [read [open $jf r]]
-            set a [lindex [regexp -all -inline {\"FF\"\s*:\s*\"([0-9]+)\"} $data] end]
-            set b [lindex [regexp -all -inline {\"AVAIL_FF\"\s*:\s*\"([0-9]+)\"} $data] end]
-            set FF_UTIL   [format "%.4f" [expr {100.0*double($a)/double($b)}]]
-            set a [lindex [regexp -all -inline {\"LUT\"\s*:\s*\"([0-9]+)\"} $data] end]
-            set b [lindex [regexp -all -inline {\"AVAIL_LUT\"\s*:\s*\"([0-9]+)\"} $data] end]
-            set LUT_UTIL  [format "%.4f" [expr {100.0*double($a)/double($b)}]]
-            set a [lindex [regexp -all -inline {\"DSP\"\s*:\s*\"([0-9]+)\"} $data] end]
-            set b [lindex [regexp -all -inline {\"AVAIL_DSP\"\s*:\s*\"([0-9]+)\"} $data] end]
-            set DSP_UTIL  [format "%.4f" [expr {100.0*double($a)/double($b)}]]
-            set a [lindex [regexp -all -inline {\"BRAM_18K\"\s*:\s*\"([0-9]+)\"} $data] end]
-            set b [lindex [regexp -all -inline {\"AVAIL_BRAM\"\s*:\s*\"([0-9]+)\"} $data] end]
-            set BRAM_UTIL [format "%.4f" [expr {100.0*double($a)/double($b)}]]
+            catch {
+                set a [lindex [regexp -all -inline {\"FF\"\s*:\s*\"([0-9]+)\"} $data] end]
+                set b [lindex [regexp -all -inline {\"AVAIL_FF\"\s*:\s*\"([0-9]+)\"} $data] end]
+                if {$a ne "" && $b ne "" && $b != 0} {
+                    set FF_UTIL [format "%.4f" [expr {100.0*double($a)/double($b)}]]
+                }
+            }
+            catch {
+                set a [lindex [regexp -all -inline {\"LUT\"\s*:\s*\"([0-9]+)\"} $data] end]
+                set b [lindex [regexp -all -inline {\"AVAIL_LUT\"\s*:\s*\"([0-9]+)\"} $data] end]
+                if {$a ne "" && $b ne "" && $b != 0} {
+                    set LUT_UTIL [format "%.4f" [expr {100.0*double($a)/double($b)}]]
+                }
+            }
+            catch {
+                set a [lindex [regexp -all -inline {\"DSP\"\s*:\s*\"([0-9]+)\"} $data] end]
+                set b [lindex [regexp -all -inline {\"AVAIL_DSP\"\s*:\s*\"([0-9]+)\"} $data] end]
+                if {$a ne "" && $b ne "" && $b != 0} {
+                    set DSP_UTIL [format "%.4f" [expr {100.0*double($a)/double($b)}]]
+                }
+            }
+            catch {
+                set a [lindex [regexp -all -inline {\"BRAM_18K\"\s*:\s*\"([0-9]+)\"} $data] end]
+                set b [lindex [regexp -all -inline {\"AVAIL_BRAM\"\s*:\s*\"([0-9]+)\"} $data] end]
+                if {$a ne "" && $b ne "" && $b != 0} {
+                    set BRAM_UTIL [format "%.4f" [expr {100.0*double($a)/double($b)}]]
+                }
+            }
         }
 
         write_synth_result $designNm $synthStatus $LAT $FF_UTIL $LUT_UTIL $DSP_UTIL $BRAM_UTIL
