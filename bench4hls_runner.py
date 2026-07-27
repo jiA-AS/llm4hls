@@ -106,6 +106,8 @@ def stage_generate(
                 temperature=cfg.temperature,
                 use_4bit=cfg.hf_use_4bit,
                 max_seq_length=cfg.hf_max_seq_length,
+                hf_token=cfg.hf_token,
+                hf_endpoint=cfg.hf_endpoint,
             )
         else:
             _backend_instance = OllamaBackend(

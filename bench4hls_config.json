@@ -1,7 +1,7 @@
 {
-  "model": "gpt-oss:20b",
+  "model": "deepseek-ai/deepseek-coder-6.7b-instruct",
   "input_prompts": "benchmark/input_prompts.json",
-  "output_dir": "/path to evaluation_output",
+  "output_dir": "E:/FPGA/project/FPT/Bench4HLS/evaluation_output",
   "output_json": "output.json",
   "generation": {
     "max_new_tokens": 30000,
@@ -9,15 +9,17 @@
   },
   "huggingface": {
     "use_4bit": true,
-    "max_seq_length": 8192
+    "max_seq_length": 8192,
+    "endpoint": "https://hf-mirror.com",
+    "token": null
   },
   "ollama": {
     "host": "http://localhost:11434",
     "timeout_seconds": 600
   },
-  "parallel_workers": 16,
+  "parallel_workers": 1,
   "xilinx": {
-    "vitis_bin": "/path to vivado installation dir/2025.2.1/Vitis/bin/unwrapped/lnx64.o/vitis_hls",
-    "vivado_bin": "/path to vivado installation dir/2025.2.1/Vivado/bin/vivado"
+    "vitis_bin": "C:/Xilinx/Vitis/2025.2.1/bin/unwrapped/lnx64.o/vitis_hls",
+    "vivado_bin": "C:/Xilinx/Vivado/2025.2.1/bin/vivado"
   }
 }

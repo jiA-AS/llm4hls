@@ -1,7 +1,12 @@
 import logging
+import os
 from .base import ModelBackend, ALPACA_PROMPT
 
 logger = logging.getLogger(__name__)
+
+# Use HF mirror for users behind network restrictions (e.g., mainland China).
+_HF_ENDPOINT = os.environ.get("HF_ENDPOINT", "https://huggingface.co")
+os.environ.setdefault("HF_ENDPOINT", _HF_ENDPOINT)
 
 
 class HuggingFaceBackend(ModelBackend):
@@ -14,10 +19,18 @@ class HuggingFaceBackend(ModelBackend):
         temperature: float = 1.0,
         use_4bit: bool = True,
         max_seq_length: int = 8192,
+        hf_token: str | None = None,
+        hf_endpoint: str | None = None,
     ):
         self.model_name = model_name
         self.max_new_tokens = max_new_tokens
         self.temperature = temperature
+        self.hf_token = hf_token
+        if hf_endpoint:
+            os.environ["HF_ENDPOINT"] = hf_endpoint
+            logger.info("HF_ENDPOINT (config) = %s", hf_endpoint)
+        else:
+            logger.info("HF_ENDPOINT = %s", _HF_ENDPOINT)
         self._load(use_4bit, max_seq_length)
 
     def _load(self, use_4bit: bool, max_seq_length: int) -> None:
@@ -59,13 +72,18 @@ class HuggingFaceBackend(ModelBackend):
             except Exception as exc:
                 logger.warning("bitsandbytes 4-bit config failed (%s) — loading in fp16", exc)
 
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, trust_remote_code=True)
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            self.model_name,
+            trust_remote_code=True,
+            token=self.hf_token,
+        )
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
             quantization_config=quant_cfg,
             torch_dtype=torch.float16 if not use_4bit else None,
             device_map="auto",
             trust_remote_code=True,
+            token=self.hf_token,
         )
         self.model.eval()
         self._backend = "transformers"

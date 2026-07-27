@@ -21,6 +21,8 @@ class BenchConfig:
     temperature: float
     hf_use_4bit: bool
     hf_max_seq_length: int
+    hf_token: Optional[str]
+    hf_endpoint: Optional[str]
     ollama_host: str
     ollama_timeout: int
     xilinx_version: str
@@ -71,6 +73,8 @@ def load_config(script_dir: Path, raw: Optional[dict[str, Any]] = None) -> Bench
         temperature=float(gen.get("temperature", 1.0)),
         hf_use_4bit=bool(hf.get("use_4bit", True)),
         hf_max_seq_length=int(hf.get("max_seq_length", 8192)),
+        hf_token=hf.get("token") or None,
+        hf_endpoint=hf.get("endpoint") or None,
         ollama_host=str(ol.get("host", "http://localhost:11434")),
         ollama_timeout=int(ol.get("timeout_seconds", 600)),
         xilinx_version=str(xi.get("version", "2025.2.1")),
